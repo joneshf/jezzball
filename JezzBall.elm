@@ -72,10 +72,11 @@ data Ball   = Ball (Float, Float) (Float, Float)
 data Balls  = Balls [Ball]
 data Cover  = Cover Float
 data Score  = Score Int
+data Lives  = Lives Int
 data State  = Level Int | BetweenLevels
 
 -- Everything we need to know about a particular round.
-data GameState = GameState State Score Cover Balls Cursor
+data GameState = GameState State Lives Score Cover Balls Cursor
 
 -- Static game stuff.
 gameWidth : number
@@ -92,6 +93,7 @@ halfHeight = gameHeight / 2
 
 defaultGame : GameState
 defaultGame = GameState BetweenLevels
+                        (Lives 3)
                         (Score 0)
                         (Cover 0)
                         (Balls [Ball (0, 0) (150, 150)])
@@ -129,7 +131,7 @@ stepBall d (Ball (x, y) (vx, vy)) =
 
 stepGame : Input -> GameState -> GameState
 stepGame (Input d (KeyInput space n p h) (MouseInput clk pos win))
-         (GameState state score cov (Balls balls) (Cursor _ vert)) =
+         (GameState state lives score cov (Balls balls) (Cursor _ vert)) =
     let balls' = case state of
             (Level n)     -> map (stepBall d) balls
             BetweenLevels -> balls
@@ -140,21 +142,42 @@ stepGame (Input d (KeyInput space n p h) (MouseInput clk pos win))
         pos' = newPos pos win
         vert' = if space then not vert else vert
         cursor' = Cursor pos' vert'
-    in GameState state' score cov (Balls balls') cursor'
+    in GameState state' lives score cov (Balls balls') cursor'
 
 gameState : Signal GameState
 gameState = foldp stepGame defaultGame input
 
 -- View
 
-bg : Color
-bg = rgb 60 100 60
+bgGreen : Color
+bgGreen = rgb 60 100 60
 
-textGreen : Color
-textGreen = rgb 160 200 160
+bgBlue : Color
+bgBlue = rgb 60 60 100
 
-txt : (Text -> Text) -> String -> Element
-txt f = text . f . monospace . Text.color textGreen . toText
+bgGray : Color
+bgGray = rgb 230 210 180
+
+fgGreen : Color
+fgGreen = rgb 160 200 160
+
+fgBlue : Color
+fgBlue = rgb 160 160 200
+
+fgGray : Color
+fgGray = rgb 0 0 0
+
+txt : Color -> (Text -> Text) -> String -> Element
+txt col f = text . f . monospace . Text.color col . toText
+
+txtBlue : String -> Element
+txtBlue = txt fgBlue id
+
+txtGreen : String -> Element
+txtGreen = txt fgGreen id
+
+txtGray : String -> Element
+txtGray = txt fgGray id
 
 msg : String
 msg = "Press N to begin"
@@ -172,12 +195,23 @@ makeBall (Ball pos vel) = make white (circle 10) pos
 
 -- Draw everything.
 display : (Int, Int) -> GameState -> Element
-display (w, h) (GameState state score cover (Balls balls) (Cursor pos vert)) =
-    container w h middle <| collage gameWidth gameHeight <|
-        [ rect gameWidth gameHeight |> filled bg
-        , makeCursor vert pos
-        , toForm <| if state == BetweenLevels then txt id msg else spacer 1 1
-        ] ++ map makeBall balls
+display (w, h) (GameState state (Lives l) score cover (Balls balls) (Cursor pos vert)) =
+    layers
+        [ container w h middle <| collage (gameWidth + 80) (gameHeight + 80) <|
+            [ filled bgGray (rect (gameWidth + 80) (gameHeight + 80))
+            ]
+        , container w h middle <| collage gameWidth gameHeight <|
+            [ rect gameWidth gameHeight |> filled bgBlue
+            , makeCursor vert pos
+            ] ++ map makeBall balls
+        , container w h middle <| collage gameWidth (gameHeight + 80) <|
+            [ toForm (txtGray <| "Lives: " ++ (show l))
+                |> move (0, gameHeight / 2 + 20)
+            ]
+        , container w h middle <| flow right
+            [ if state == BetweenLevels then txtBlue msg else spacer 1 1
+            ]
+        ]
 
 main : Signal Element
 main = display <~ Window.dimensions ~ gameState
