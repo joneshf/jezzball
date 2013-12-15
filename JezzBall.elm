@@ -1,7 +1,6 @@
-module JezzBall where
-
 import Keyboard
 import Mouse
+import Window
 
 {-
     We need three parts to this
@@ -114,3 +113,26 @@ stepGame (Input d (KeyInput space n p h) (MouseInput clk))
     in GameState state' score cov (Balls balls') cursor
 
 gameState = foldp stepGame defaultGame input
+
+-- View
+
+scoreBoard w inPlay = "Press N to begin"
+
+-- Draw everything.
+display (w, h) (GameState state score cover (Balls balls) (Cursor c)) =
+    let play = case state of
+            (Level _) -> True
+            _         -> False
+    in layers
+        [ scoreBoard w play
+        , let bg = rgb 60 100 60
+          in size w h middle (collage gameWidth gameHeight
+                      [ filled bg (rect gameWidth gameHeight (halfWidth, halfHeight))
+                      , filled white (rect 10 20 (20, c))
+                      ] ++ (map make balls))
+        ]
+
+make obj = case obj of
+    (x, y) -> (circle 15) |> filled white |> move (x, y)
+
+main = lift2 display Window.dimensions gameState
