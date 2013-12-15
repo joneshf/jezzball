@@ -80,8 +80,8 @@ halfHeight = gameHeight / 2
 defaultGame = GameState BetweenLevels
                         (Score 0)
                         (Cover 0)
-                        (Balls [Ball (halfWidth, halfHeight) (150, 150)])
-                        (Cursor (halfWidth, halfHeight))
+                        (Balls [Ball (0, 0) (150, 150)])
+                        (Cursor (0, 0))
 
 -- Updates
 
@@ -95,8 +95,8 @@ within ep n x = n - ep < x && x < n + ep
 stepVel v l u = if l then makePos v else if u then makeNeg v else v
 
 stepBall d (Ball (x, y) (vx, vy)) =
-    let vx' = stepVel vx (x < 7) (x > gameWidth - 7)
-        vy' = stepVel vy (y < 7) (y > gameHeight - 7)
+    let vx' = stepVel vx (x < 7 - halfWidth) (x > halfWidth - 7)
+        vy' = stepVel vy (y < 7 - halfHeight) (y > halfHeight - 7)
         x' = x + vx' * d
         y' = y + vy' * d
     in (Ball (x', y') (vx', vy'))
@@ -109,7 +109,7 @@ stepGame (Input d (KeyInput space n p h) (MouseInput clk))
         state' = case state of
             -- Should update level if everything is good.
             (Level n)     -> state
-            BetweenLevels -> if space then Level 1 else state
+            BetweenLevels -> if n then Level 1 else state
     in GameState state' score cov (Balls balls') cursor
 
 gameState = foldp stepGame defaultGame input
@@ -118,21 +118,26 @@ gameState = foldp stepGame defaultGame input
 
 scoreBoard w inPlay = "Press N to begin"
 
+textGreen = rgb 160 200 160
+
+txt f = text . f . monospace . Text.color textGreen . toText
+
+msg = "Press N to begin"
+
+make (x, y) shape = shape |> filled white
+                          |> move (x, y)
+
+makeBall (Ball pos vel) = circle 7 |> filled white
+                          |> move pos
+
+bg = rgb 60 100 60
+
 -- Draw everything.
 display (w, h) (GameState state score cover (Balls balls) (Cursor c)) =
-    let play = case state of
-            (Level _) -> True
-            _         -> False
-    in layers
-        [ scoreBoard w play
-        , let bg = rgb 60 100 60
-          in size w h middle (collage gameWidth gameHeight
-                      [ filled bg (rect gameWidth gameHeight (halfWidth, halfHeight))
-                      , filled white (rect 10 20 (20, c))
-                      ] ++ (map make balls))
-        ]
-
-make obj = case obj of
-    (x, y) -> (circle 15) |> filled white |> move (x, y)
+    container w h middle <| collage gameWidth gameHeight <|
+        [ rect gameWidth gameHeight |> filled bg
+        , rect 10 20 |> make c
+        , toForm <| if state == BetweenLevels then txt id msg else spacer 1 1
+        ] ++ map makeBall balls
 
 main = lift2 display Window.dimensions gameState
