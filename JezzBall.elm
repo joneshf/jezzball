@@ -1,7 +1,7 @@
 module JezzBall where
 
--- Set the target frame rate.
-delta = lift inSeconds $ fps 50
+import Keyboard
+import Mouse
 
 {-
     We need three parts to this
@@ -29,6 +29,8 @@ delta = lift inSeconds $ fps 50
 -- Models
 
 -- Inputs
+
+-- Keyboard
 data KeyInput = KeyInput Bool Bool Bool Bool
 
 defaultKeyInput = KeyInput False False False False
@@ -39,14 +41,43 @@ keyInput = lift4 KeyInput Keyboard.space
                           (Keyboard.isDown 80) -- P
                           (Keyboard.isDown 72) -- H
 
+-- Mouse
+
 -- We need to know when the user clicks.
 data MouseInput = MouseInput Bool
 
 defaultMouseInput = MouseInput False
 
-mouseInput = Mouse.isClicked
+mouseInput = lift MouseInput Mouse.isClicked
+
+-- Clock
+
+-- Set the target frame rate.
+delta = lift inSeconds (fps 50)
 
 -- Combine all the inputs.
 data Input = Input Float KeyInput MouseInput
 
-input = delta `sampleOn` (lift3 delta keyInput mouseInput)
+input = sampleOn delta (lift3 Input delta keyInput mouseInput)
+
+-- Game inputs
+
+data Cursor = Cursor (Float, Float)
+data Ball   = Ball (Float, Float) (Float, Float)
+data Balls  = Balls [Ball]
+data Score  = Score Int
+data State  = Level Int | BetweenLevels
+
+-- Everything we need to know about a particular round.
+data GameState = GameState State Score Balls Cursor
+
+-- Static game stuff.
+gameWidth = 640
+gameHeight = 480
+halfWidth = gameWidth / 2
+halfHeight = gameHeight / 2
+
+defaultGame = GameState BetweenLevels
+                        (Score 0)
+                        (Balls [Ball (halfWidth, halfHeight) (150, 150)])
+                        (Cursor (halfWidth, halfHeight))
