@@ -67,7 +67,7 @@ input = sampleOn delta (Input <~ delta ~ keyInput ~ mouseInput)
 
 -- Game inputs
 
-data Cursor = Cursor (Float, Float)
+data Cursor = Cursor (Float, Float) Bool
 data Ball   = Ball (Float, Float) (Float, Float)
 data Balls  = Balls [Ball]
 data Cover  = Cover Float
@@ -95,7 +95,7 @@ defaultGame = GameState BetweenLevels
                         (Score 0)
                         (Cover 0)
                         (Balls [Ball (0, 0) (150, 150)])
-                        (Cursor (0, 0))
+                        (Cursor (0, 0) True)
 
 -- Updates
 
@@ -129,7 +129,7 @@ stepBall d (Ball (x, y) (vx, vy)) =
 
 stepGame : Input -> GameState -> GameState
 stepGame (Input d (KeyInput space n p h) (MouseInput clk pos win))
-         (GameState state score cov (Balls balls) (Cursor c)) =
+         (GameState state score cov (Balls balls) (Cursor _ vert)) =
     let balls' = case state of
             (Level n)     -> map (stepBall d) balls
             BetweenLevels -> balls
@@ -138,7 +138,8 @@ stepGame (Input d (KeyInput space n p h) (MouseInput clk pos win))
             (Level n)     -> state
             BetweenLevels -> if n then Level 1 else state
         pos' = newPos pos win
-        cursor' = Cursor pos'
+        vert' = if space then not vert else vert
+        cursor' = Cursor pos' vert'
     in GameState state' score cov (Balls balls') cursor'
 
 gameState : Signal GameState
@@ -161,18 +162,20 @@ msg = "Press N to begin"
 make : Color -> Shape -> (Float, Float) -> Form
 make col shape pos = shape |> filled col |> move pos
 
-makeCursor : (Float, Float) -> Form
-makeCursor = make gray (rect 10 20)
+makeCursor : Bool -> (Float, Float) -> Form
+makeCursor vert =
+    let shape = if vert then rect 15 30 else rect 30 15
+    in make gray shape
 
 makeBall : Ball -> Form
-makeBall (Ball pos vel) = circle 7 |> filled white |> move pos
+makeBall (Ball pos vel) = make white (circle 10) pos
 
 -- Draw everything.
 display : (Int, Int) -> GameState -> Element
-display (w, h) (GameState state score cover (Balls balls) (Cursor c)) =
+display (w, h) (GameState state score cover (Balls balls) (Cursor pos vert)) =
     container w h middle <| collage gameWidth gameHeight <|
         [ rect gameWidth gameHeight |> filled bg
-        , makeCursor c
+        , makeCursor vert pos
         , toForm <| if state == BetweenLevels then txt id msg else spacer 1 1
         ] ++ map makeBall balls
 
