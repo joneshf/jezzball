@@ -37,10 +37,10 @@ defaultKeyInput = KeyInput False False False False
 
 -- We care about the space, N, P, and H keys
 keyInput : Signal KeyInput
-keyInput = lift4 KeyInput Keyboard.space
-                          (Keyboard.isDown 78) -- N
-                          (Keyboard.isDown 80) -- P
-                          (Keyboard.isDown 72) -- H
+keyInput = KeyInput <~ Keyboard.space
+                     ~ Keyboard.isDown 78 -- N
+                     ~ Keyboard.isDown 80 -- P
+                     ~ Keyboard.isDown 72 -- H
 
 -- Mouse
 
@@ -57,7 +57,7 @@ mouseInput = MouseInput <~ Mouse.isClicked ~ Mouse.position ~ Window.dimensions
 
 -- Set the target frame rate.
 delta : Signal Time
-delta = lift inSeconds (fps 50)
+delta = inSeconds <~ fps 50
 
 -- Combine all the inputs.
 data Input = Input Float KeyInput MouseInput
@@ -158,22 +158,23 @@ txt f = text . f . monospace . Text.color textGreen . toText
 msg : String
 msg = "Press N to begin"
 
-make : (Float, Float) -> Shape -> Form
-make (x, y) shape = shape |> filled white
-                          |> move (x, y)
+make : Color -> Shape -> (Float, Float) -> Form
+make col shape pos = shape |> filled col |> move pos
+
+makeCursor : (Float, Float) -> Form
+makeCursor = make gray (rect 10 20)
 
 makeBall : Ball -> Form
-makeBall (Ball pos vel) = circle 7 |> filled white
-                          |> move pos
+makeBall (Ball pos vel) = circle 7 |> filled white |> move pos
 
 -- Draw everything.
 display : (Int, Int) -> GameState -> Element
 display (w, h) (GameState state score cover (Balls balls) (Cursor c)) =
     container w h middle <| collage gameWidth gameHeight <|
         [ rect gameWidth gameHeight |> filled bg
-        , rect 10 20 |> make c
+        , makeCursor c
         , toForm <| if state == BetweenLevels then txt id msg else spacer 1 1
         ] ++ map makeBall balls
 
 main : Signal Element
-main = lift2 display Window.dimensions gameState
+main = display <~ Window.dimensions ~ gameState
