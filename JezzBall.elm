@@ -45,13 +45,13 @@ keyInput = lift4 KeyInput Keyboard.space
 -- Mouse
 
 -- We need to know when the user clicks.
-data MouseInput = MouseInput Bool
+data MouseInput = MouseInput Bool (Int, Int) (Int, Int)
 
 defaultMouseInput : MouseInput
-defaultMouseInput = MouseInput False
+defaultMouseInput = MouseInput False (0, 0) (0, 0)
 
 mouseInput : Signal MouseInput
-mouseInput = lift MouseInput Mouse.isClicked
+mouseInput = MouseInput <~ Mouse.isClicked ~ Mouse.position ~ Window.dimensions
 
 -- Clock
 
@@ -63,7 +63,7 @@ delta = lift inSeconds (fps 50)
 data Input = Input Float KeyInput MouseInput
 
 input : Signal Input
-input = sampleOn delta (lift3 Input delta keyInput mouseInput)
+input = sampleOn delta (Input <~ delta ~ keyInput ~ mouseInput)
 
 -- Game inputs
 
@@ -128,8 +128,8 @@ stepBall d (Ball (x, y) (vx, vy)) =
     in (Ball (x', y') (vx', vy'))
 
 stepGame : Input -> GameState -> GameState
-stepGame (Input d (KeyInput space n p h) (MouseInput clk))
-         (GameState state score cov (Balls balls) cursor) =
+stepGame (Input d (KeyInput space n p h) (MouseInput clk pos win))
+         (GameState state score cov (Balls balls) (Cursor c)) =
     let balls' = case state of
             (Level n)     -> map (stepBall d) balls
             BetweenLevels -> balls
@@ -137,7 +137,7 @@ stepGame (Input d (KeyInput space n p h) (MouseInput clk))
             -- Should update level if everything is good.
             (Level n)     -> state
             BetweenLevels -> if n then Level 1 else state
-        pos' = lift2 newPos Mouse.position Window.dimensions
+        pos' = newPos pos win
         cursor' = Cursor pos'
     in GameState state' score cov (Balls balls') cursor'
 
